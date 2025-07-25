@@ -1,3 +1,5 @@
+#Created a new schema and used Data Import Data Wizard to import 2 CV files.
+
 #Data was imported with a extra characters in ID column name. Code below will update the column name.
 ALTER TABLE ushouseholdincome_statistics RENAME COLUMN `ï»¿id` to `id`;
 SELECT * FROM us_household_income.ushouseholdincome_statistics;
