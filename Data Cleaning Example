@@ -1,0 +1,88 @@
+#Data was imported with a extra characters in ID column name. Code below will update the column name.
+ALTER TABLE ushouseholdincome_statistics RENAME COLUMN `ï»¿id` to `id`;
+SELECT * FROM us_household_income.ushouseholdincome_statistics;
+
+#Search for duplicate id's
+SELECT id, COUNT(id)
+FROM ushouseholdincome
+GROUP BY id
+HAVING COUNT(id) > 1;
+
+#Identify which duplicate rows to delete
+SELECT *
+FROM(
+SELECT row_id, id, RANK() OVER(PARTITION BY id ORDER BY row_id) AS rank_num #use partition by to give a rank to the id based on which one shows up first in our data aka row_id
+FROM ushouseholdincome) AS duplicated
+WHERE rank_num > 1;
+
+#Use the above query to delete duplicate rows
+DELETE FROM ushouseholdincome
+WHERE row_id IN (
+	SELECT row_id
+	FROM(
+		SELECT row_id, id, RANK() OVER(PARTITION BY id ORDER BY row_id) AS rank_num #use partition by to give a rank to the id based on which one shows up first in our data aka row_id
+		FROM ushouseholdincome) AS duplicated
+	WHERE rank_num > 1)
+;
+
+#Check the second table for duplicate id's. Spoiler alert- there are no duplicates.
+SELECT id, COUNT(id)
+FROM ushouseholdincome_statistics
+GROUP BY id
+HAVING COUNT(id) > 1;
+
+#Check for standardization in the state columns
+SELECT DISTINCT state_name
+FROM ushouseholdincome;
+SELECT DISTINCT state_name
+FROM ushouseholdincome;
+
+#There is 1 state that is misspelt so the code below updates our table
+UPDATE ushouseholdincome
+SET state_name = 'Georgia'
+WHERE state_name = 'georia';
+UPDATE ushouseholdincome_statistics
+SET state_name = 'Georgia'
+WHERE state_name = 'georia';
+
+#Check for standardization in state_ab columns. Spoiler- its all good.
+SELECT DISTINCT state_ab
+FROM ushouseholdincome;
+
+#Check for standardization in county, city, and place columns
+SELECT DISTINCT place
+FROM ushouseholdincome
+ORDER by place; #there is one blank in the place column
+
+#Use existing information to fill in the blank in the place column.
+Select *
+FROM ushouseholdincome
+WHERE county = 'Autauga County'; #I am assuming the blank place should be Autaugaville based on the other information. A good area to validate with the data owner.
+
+UPDATE ushouseholdincome
+SET place = 'Autaugaville'
+WHERE county = 'Autauga County' AND place = '';
+
+SELECT *
+FROM ushouseholdincome
+WHERE place = ''; #confirming that the blank was updated
+
+#Next check the type column for needed standardization
+SELECT type, COUNT(*)
+FROM ushouseholdincome
+GROUP BY type; #borough and boruoghs should be combined to be 1 category
+
+#Update type column
+UPDATE ushouseholdincome
+SET type = 'Borough'
+WHERE type = 'Boroughs'; #I ran the code above and confirmed that the type column is now standardized 
+
+#Now checking the Aland and Awater columns
+SELECT ALand, AWater
+FROM ushouseholdincome; #there are some 0 in AWater and 0 in ALand which may indicate there are counties with no water or no land (only water).alter
+
+#Check if there are any counties with no land and water meaning no data was recorded
+SELECT ALand, AWater
+FROM ushouseholdincome
+WHERE (ALand = 0 OR ALand = '' OR ALand IS NULL)
+AND (AWater = 0 OR AWater = '' OR AWater IS NULL); #There are no such record
